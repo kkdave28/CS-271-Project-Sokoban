@@ -1,99 +1,189 @@
 import collections
+from enum import Enum
 
 """
     Types of grid objects
 """
-Empty = 0
-Wall = 1
-Box = 2
-Terminal = 3
-Player = 4
+
+
+class Object(Enum):
+    EMPTY = 0
+    WALL = 1
+    BOX = 2
+    TERMINAL = 3
+    PLAYER = 4
+
+
+"""
+    Movement directions 
+"""
+
+
+class Move(Enum):
+    UP = 0
+    DOWN = 1
+    LEFT = 2
+    RIGHT = 3
+
 
 """
     grid object is basically a cell on the board, it has a pair of coordinate and type associated with it.
-    Basic getters, setters and print_board function is defined for this class, also boolean checks to check type are implemented.
+    Basic getters, setters and print_board function is defined for this class, also boolean checks to check type are 
+    implemented.
 """
-class grid_object:
+
+
+class GridObject:
+
+    grid_object_map = {
+        Object.EMPTY: " ",
+        Object.WALL: "#",
+        Object.BOX: "$",
+        Object.TERMINAL: ".",
+        Object.PLAYER: "@"
+    }
+
     def __init__(self, x_coord, y_coord):
-        self.Type = Empty
+        self.Type = Object.EMPTY
         self.x = x_coord
         self.y = y_coord
-    def getType(self)->int:
+
+    def get_type(self) -> Object:
         return self.Type
-    def setType(self, newType)->None:
-        if newType > 4 or newType < 0:
-            print("Error: Invalid Type specified.")
-        else:
-            self.Type = newType
-    def get_x_coord(self)->int:
+
+    def set_type(self, new_type: Object) -> None:
+        self.Type = new_type
+
+    def get_x_coord(self) -> int:
         return self.x
-    def get_y_coord(self)->int:
+
+    def get_y_coord(self) -> int:
         return self.y
-    def set_coords(self, x_coord, y_coord)->None:
+
+    def set_coords(self, x_coord, y_coord) -> None:
         self.x = x_coord
         self.y = y_coord
-    def print_grid_object(self)->None:
-        if self.Type == Empty:
-            print(" ", end="")
-        elif self.Type == Wall:
-            print("#", end="")
-        elif self.Type == Box:
-            print("$", end="")
-        elif self.Type == Terminal:
-            print(".", end="")
-        elif self.Type == Player:
-            print("@", end="")
 
-    def isEmpty(self)->bool:
-        return self.Type == Empty
-    def isBox(self)->bool:
-        return self.Type == Box
-    def isPlayer(self)->bool:
-        return self.Type == Player
-    def isWall(self)->bool:
-        return self.Type == Wall
-    def isTerm(self)->bool:
-        return self.Type==Terminal
+    def print_grid_object(self) -> None:
+        print(self.grid_object_map[self.Type], end="")
+
+    def is_empty(self) -> bool:
+        return Object.EMPTY == self.Type
+
+    def is_box(self) -> bool:
+        return Object.BOX == self.Type
+
+    def is_player(self) -> bool:
+        return Object.PLAYER == self.Type
+
+    def is_wall(self) -> bool:
+        return Object.WALL == self.Type
+
+    def is_terminal(self) -> bool:
+        return Object.TERMINAL == self.Type
+
 
 """
-    main board object, takes in multiple arguments from the parser class and also basic getters and setters are defined. Will definitely need new functions as we proceed
-    with the project.
+    State class to hold just player and box locations
 """
+
+
+# TODO: Is this the best way in Python if we want to pass around the state?
+
+
+class State:
+    def __init__(self, player_location: list, boxes: set):
+        self.player = player_location
+        self.boxes = boxes
+
+
+"""
+    Action class for details about an action being performed: moving a box
+"""
+
+
+# TODO: Is this the best way in Python if we want to pass around the action?
+
+
+class Action:
+    def __init__(self, box_location: tuple, move_direction: Move):
+        self.box = box_location
+        self.direction = move_direction
+
+
+"""
+    main board object, takes in multiple arguments from the parser class and also basic getters and setters are 
+    defined. Will definitely need new functions as we proceed with the project. 
+"""
+
 
 class GameBoard:
-    def __init__(self, rows: int, columns:int, walls: int, boxes: int, terms: int, player_loc: list):
+    def __init__(self, rows: int, columns: int, walls: int, boxes: int, terms: int, player_loc: list):
         self.board = collections.defaultdict(dict)
+        self.box_locations = set()
+        self.terminal_locations = set()
         self.row_count = rows
         self.col_count = columns
         self.wall_count = walls
         self.box_count = boxes
         self.term_count = terms
         self.location = player_loc
-        for r in range(1, 1+rows,1):
+        for r in range(1, 1 + rows, 1):
             self.board[r] = dict()
-            for c in range(1, 1+columns, 1):
-                self.board[r][c] = grid_object(r,c)
-    def init_objects(self, object_coords: list, newType: int)->None:
+            for c in range(1, 1 + columns, 1):
+                self.board[r][c] = GridObject(r, c)
+
+    def init_objects(self, object_coords: list, new_type: Object) -> None:
         for i in range(0, len(object_coords), 2):
-            wall_x = int(object_coords[i])
-            wall_y = int(object_coords[i+1])
-            self.board[wall_x][wall_y].setType(newType)
-    
-    def debug(self)->None:
+            row = int(object_coords[i])
+            column = int(object_coords[i + 1])
+            self.board[row][column].set_type(new_type)
+            if Object.BOX == new_type:
+                self.box_locations.add((row, column))
+            if Object.TERMINAL == new_type:
+                self.terminal_locations.add((row, column))
+
+    def debug(self) -> None:
         for r in self.board.keys():
             for c in self.board[r].keys():
                 self.board[r][c].print_grid_object()
             print("")
-    def get_rows(self)->int:
+
+    def get_rows(self) -> int:
         return self.row_count
-    def get_cols(self)->int:
+
+    def get_cols(self) -> int:
         return self.col_count
-    def get_box_count(self)->int:
+
+    def get_box_count(self) -> int:
         return self.box_count
-    def get_term_count(self)->int:
+
+    def get_term_count(self) -> int:
         return self.term_count
-    def set_player_loc(self, x: int, y: int)->None:
-        self.location = [x,y]
-        self.board[x][y].setType(Player)
-    def get_player_loc(self)->list:
+
+    def move_player(self, destination: list) -> None:
+        self.set_player_loc(destination[0], destination[1])
+
+    def set_player_loc(self, x: int, y: int) -> None:
+        current_location = self.get_player_loc()
+        self.board[current_location[0]][current_location[1]].set_type(Object.EMPTY)
+        self.location = [x, y]
+        self.board[x][y].set_type(Object.PLAYER)
+
+    def get_player_loc(self) -> list:
         return self.location
+
+    def tentative_move_box(self, box, direction: Move) -> (list, list, int):
+        # TODO: move box one step in direction, return the player's new location, box's new location,
+        # and exact number of moves needed to move from player's current location to new location
+        pass
+
+    def update_locations(self, state: State) -> None:
+        self.move_player(state.player)
+        # TODO: update box locations from state
+        pass
+
+    def goal_reached(self):
+        if self.box_locations.intersection(self.terminal_locations):
+            return True
+        return False
