@@ -4,17 +4,15 @@ from enum import Enum
 """
     Types of grid objects
 """
-EMPTY = 0
-WALL = 1
-BOX = 2
-TERMINAL = 3
-PLAYER = 4
 
-"""
-    grid object is basically a cell on the board, it has a pair of coordinate and type associated with it.
-    Basic getters, setters and print_board function is defined for this class, also boolean checks to check type are 
-    implemented.
-"""
+
+class Object(Enum):
+    EMPTY = 0
+    WALL = 1
+    BOX = 2
+    TERMINAL = 3
+    PLAYER = 4
+
 
 """
     Movement directions 
@@ -28,20 +26,33 @@ class Move(Enum):
     RIGHT = 3
 
 
+"""
+    grid object is basically a cell on the board, it has a pair of coordinate and type associated with it.
+    Basic getters, setters and print_board function is defined for this class, also boolean checks to check type are 
+    implemented.
+"""
+
+
 class GridObject:
+
+    grid_object_map = {
+        Object.EMPTY: " ",
+        Object.WALL: "#",
+        Object.BOX: "$",
+        Object.TERMINAL: ".",
+        Object.PLAYER: "@"
+    }
+
     def __init__(self, x_coord, y_coord):
-        self.Type = EMPTY
+        self.Type = Object.EMPTY
         self.x = x_coord
         self.y = y_coord
 
-    def get_type(self) -> int:
+    def get_type(self) -> Object:
         return self.Type
 
-    def set_type(self, new_type) -> None:
-        if new_type > 4 or new_type < 0:
-            print("Error: Invalid Type specified.")
-        else:
-            self.Type = new_type
+    def set_type(self, new_type: Object) -> None:
+        self.Type = new_type
 
     def get_x_coord(self) -> int:
         return self.x
@@ -54,36 +65,29 @@ class GridObject:
         self.y = y_coord
 
     def print_grid_object(self) -> None:
-        if self.Type == EMPTY:
-            print(" ", end="")
-        elif self.Type == WALL:
-            print("#", end="")
-        elif self.Type == BOX:
-            print("$", end="")
-        elif self.Type == TERMINAL:
-            print(".", end="")
-        elif self.Type == PLAYER:
-            print("@", end="")
+        print(self.grid_object_map[self.Type], end="")
 
     def is_empty(self) -> bool:
-        return self.Type == EMPTY
+        return Object.EMPTY == self.Type
 
     def is_box(self) -> bool:
-        return self.Type == BOX
+        return Object.BOX == self.Type
 
     def is_player(self) -> bool:
-        return self.Type == PLAYER
+        return Object.PLAYER == self.Type
 
     def is_wall(self) -> bool:
-        return self.Type == WALL
+        return Object.WALL == self.Type
 
     def is_terminal(self) -> bool:
-        return self.Type == TERMINAL
+        return Object.TERMINAL == self.Type
 
 
 """
     State class to hold just player and box locations
 """
+
+
 # TODO: Is this the best way in Python if we want to pass around the state?
 
 
@@ -96,6 +100,8 @@ class State:
 """
     Action class for details about an action being performed: moving a box
 """
+
+
 # TODO: Is this the best way in Python if we want to pass around the action?
 
 
@@ -127,14 +133,14 @@ class GameBoard:
             for c in range(1, 1 + columns, 1):
                 self.board[r][c] = GridObject(r, c)
 
-    def init_objects(self, object_coords: list, new_type: int) -> None:
+    def init_objects(self, object_coords: list, new_type: Object) -> None:
         for i in range(0, len(object_coords), 2):
             row = int(object_coords[i])
             column = int(object_coords[i + 1])
-            self.board[row][column].setType(new_type)
-            if BOX == new_type:
+            self.board[row][column].set_type(new_type)
+            if Object.BOX == new_type:
                 self.box_locations.add((row, column))
-            if TERMINAL == new_type:
+            if Object.TERMINAL == new_type:
                 self.terminal_locations.add((row, column))
 
     def debug(self) -> None:
@@ -160,9 +166,9 @@ class GameBoard:
 
     def set_player_loc(self, x: int, y: int) -> None:
         current_location = self.get_player_loc()
-        self.board[current_location[0]][current_location[1]].set_type(EMPTY)
+        self.board[current_location[0]][current_location[1]].set_type(Object.EMPTY)
         self.location = [x, y]
-        self.board[x][y].set_type(PLAYER)
+        self.board[x][y].set_type(Object.PLAYER)
 
     def get_player_loc(self) -> list:
         return self.location
@@ -181,4 +187,3 @@ class GameBoard:
         if self.box_locations.intersection(self.terminal_locations):
             return True
         return False
-

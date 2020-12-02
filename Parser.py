@@ -1,4 +1,4 @@
-from GameBoard import GameBoard, WALL, BOX, TERMINAL, PLAYER
+from GameBoard import GameBoard, Object
 
 
 class Parser:
@@ -45,10 +45,10 @@ class Parser:
         """
             Generic function can be called repeatedly with different args
         """
-        x.init_objects(walls, WALL)
-        x.init_objects(boxes, BOX)
-        x.init_objects(terminals, TERMINAL)
-        x.init_objects(player_loc, PLAYER)
+        x.init_objects(walls, Object.WALL)
+        x.init_objects(boxes, Object.BOX)
+        x.init_objects(terminals, Object.TERMINAL)
+        x.init_objects(player_loc, Object.PLAYER)
         """
             return the newly created object to the caller.
         """
