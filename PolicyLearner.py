@@ -15,7 +15,7 @@ class PolicyLearner:
     def __init__(self, game_board: GameBoard):
         self.initial_state = game_board
         self.state_board = game_board
-        self.state = State(game_board.get_player_loc(), game_board.box_locations)
+        self.state = game_board.get_current_state()
         self.total_steps = 0
         self.terminated = False
         self.learning_rate = 1.0

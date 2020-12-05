@@ -24,7 +24,8 @@ class Parser:
         walls = input_lines[1].split()
         boxes = input_lines[2].split()
         terminals = input_lines[3].split()
-        player_loc = input_lines[4].split()
+        player_loc_str = input_lines[4].split()
+        player_loc = (int(player_loc_str[0]), int(player_loc_str[1]))
 
         wall_count = int(walls[0])
         walls.pop(0)
