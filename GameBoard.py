@@ -178,11 +178,6 @@ class GameBoard:
     def get_player_loc(self) -> tuple:
         return self.location
 
-    def tentative_move_box(self, box, direction: Move) -> (list, list, int):
-        # TODO: move box one step in direction, return the player's new location, box's new location,
-        # and exact number of moves needed to move from player's current location to new location
-        pass
-
     def update_locations(self, state: State) -> None:
         self.move_player(state.player)
         # TODO: update box locations from state
