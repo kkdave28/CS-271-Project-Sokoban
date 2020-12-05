@@ -1,5 +1,6 @@
 import collections
 from enum import Enum
+import queue
 
 """
     Types of grid objects
@@ -20,10 +21,10 @@ class Object(Enum):
 
 
 class Move(Enum):
-    UP = 0
-    DOWN = 1
-    LEFT = 2
-    RIGHT = 3
+    U = (-1,0)
+    D = (1,0)
+    L = (0,-1)
+    R = (0,1)
 
 
 """
@@ -92,7 +93,7 @@ class GridObject:
 
 
 class State:
-    def __init__(self, player_location: list, boxes: set):
+    def __init__(self, player_location: tuple, boxes: set):
         self.player = player_location
         self.boxes = boxes
 
@@ -106,10 +107,14 @@ class State:
 
 
 class Action:
-    def __init__(self, box_location: tuple, move_direction: Move):
+    def __init__(self, box_location: tuple, move_direction: Move, action_cost: int, path: str):
         self.box = box_location
         self.direction = move_direction
+        self.action_cost = action_cost
+        self.path = path
 
+    def __repr__(self):
+        return "Player move {} to push box at {} {}, {} steps.".format(self.path, self.box, self.direction, self.action_cost)
 
 """
     main board object, takes in multiple arguments from the parser class and also basic getters and setters are 
@@ -118,7 +123,7 @@ class Action:
 
 
 class GameBoard:
-    def __init__(self, rows: int, columns: int, walls: int, boxes: int, terms: int, player_loc: list):
+    def __init__(self, rows: int, columns: int, walls: int, boxes: int, terms: int, player_loc: tuple):
         self.board = collections.defaultdict(dict)
         self.box_locations = set()
         self.terminal_locations = set()
@@ -161,29 +166,80 @@ class GameBoard:
     def get_term_count(self) -> int:
         return self.term_count
 
-    def move_player(self, destination: list) -> None:
+    def move_player(self, destination: tuple) -> None:
         self.set_player_loc(destination[0], destination[1])
 
     def set_player_loc(self, x: int, y: int) -> None:
         current_location = self.get_player_loc()
         self.board[current_location[0]][current_location[1]].set_type(Object.EMPTY)
-        self.location = [x, y]
+        self.location = (x,y)
         self.board[x][y].set_type(Object.PLAYER)
 
-    def get_player_loc(self) -> list:
+    def get_player_loc(self) -> tuple:
         return self.location
-
-    def tentative_move_box(self, box, direction: Move) -> (list, list, int):
-        # TODO: move box one step in direction, return the player's new location, box's new location,
-        # and exact number of moves needed to move from player's current location to new location
-        pass
 
     def update_locations(self, state: State) -> None:
         self.move_player(state.player)
         # TODO: update box locations from state
         pass
 
+    def get_current_state(self) -> State:
+        # output the current state of the board as a State object
+        return State(self.get_player_loc(), self.box_locations)
+
+    def get_valid_actions(self) -> [Action]:
+        # output a list of actions that are valid given current state
+        # an action => box location (x,y) + direction
+        # an action is valid if following three conditions are met
+        #   1. the destination grid is empty
+        #   2. the grid opposite to the destination is reachable by the player WITHOUT pushing any box
+        reachable_locations = self._get_reachable_locations()
+        valid_actions = []
+
+        def _get_path(location: tuple) -> str:
+            # find the path from the player location in reachable_locations to the given origin
+            # output the path as a string
+            path = ""
+            while reachable_locations[location][1] != None:
+                # backtrack to the player location
+                parent_location = reachable_locations[location][1]
+                move = (location[0] - parent_location[0], location[1] - parent_location[1])
+                path += ' ' + Move(move).name
+                location = parent_location
+            return path[::-1]
+
+
+        for (x,y) in self.box_locations:
+            for move in Move:
+                (i, j) = move.value
+                if self.board[x + i][y + j].is_empty() or self.board[x + i][y + j].is_terminal():
+                    if (x-i, y-j) in reachable_locations.keys():
+                        path = _get_path((x-i, y-j)) + Move(move).name
+                        valid_actions.append(Action((x,y), move, reachable_locations[(x-i, y-j)][0] + 1, path))
+        return valid_actions
+
+    def _get_reachable_locations(self):
+        # output a dictionary of location
+        # key is (x,y) tuple, value is (cost, parent (x,y))
+        # the parent location is used to backtrack any point to player location along shortest path
+        reachable_locations = dict()
+        frontier = queue.Queue()
+
+        reachable_locations[self.get_player_loc()] = (0, None) # player location does not have a parent location
+        frontier.put((self.get_player_loc(),0))
+
+        while not frontier.empty():
+            ((x,y),d) = frontier.get()
+            for move in Move:
+                (i,j) = move.value
+                if (x+i, y+j) not in reachable_locations.keys():
+                    if self.board[x+i][y+j].is_empty() or self.board[x+i][y+j].is_terminal():
+                        reachable_locations[(x+i,y+j)] = (d+1, (x,y))
+                        frontier.put(((x-1,y),d+1))
+        return reachable_locations
+
     def goal_reached(self):
-        if self.box_locations.intersection(self.terminal_locations):
+        # goal is reached when the set of box_locations equal to the set of terminal_locations
+        if len(self.box_locations.intersection(self.terminal_locations)) == len(self.terminal_locations):
             return True
         return False
