@@ -1,14 +1,17 @@
 import collections
+import operator
 import random
 import sys
 
-from GameBoard import GameBoard, State, Action, Move
+from GameBoard import GameBoard, State, Action
 
 """
     Constants
 """
 STEPS_MIN = - sys.maxsize - 1
 STEPS_MAX = sys.maxsize
+MIN_QUALITY = - sys.maxsize - 1
+DEFAULT_QUALITY = 1.0  # TODO: Find a good value for this
 
 
 class PolicyLearner:
@@ -37,61 +40,54 @@ class PolicyLearner:
                 total_steps = 0
             self.reset_state()
             while not self.terminated:
-                action, reward, terminated = self.choose_action()
-                next_state, move_steps = self.get_next_state(action)
-                self.total_steps += move_steps
+                action = self.choose_action()
+                next_state = self.get_next_state(action)
+                reward = self.calculate_reward(next_state, action)
+                self.total_steps += action.action_cost
                 next_action = self.choose_best_action(next_state)
                 next_action_quality = self.get_quality(next_action, next_state)
                 action_quality = self.get_current_quality(action)
                 new_quality = action_quality + self.learning_rate * (reward + self.discount * next_action_quality
                                                                      - action_quality)
                 self.set_quality(action, new_quality)
-                self.update_state(next_state)
+                self.update_state(next_state, action)
 
             if self.game_board.goal_reached():
                 self.best_steps = min(self.best_steps, self.total_steps)
 
     def choose_action(self) -> (Action, float, bool):
-        # TODO: placeholder for choose action logic
-        valid_actions = self.game_board.get_valid_actions()
         random.seed()
         e = random.random()
-        if e < self.exploration_factor:
-            rand_index = random.randrange(0, len(valid_actions))
-            action = valid_actions[rand_index]
-            
-            return valid_actions[rand_index]
-        else:
-            self.choose_best_action(self.state)
 
-        action = Action((0, 0), Move.DOWN)
-        reward = -1
-        terminated = False
-        return action, reward, terminated
+        if e < self.exploration_factor or self.state not in self.quality_values:
+            valid_actions = self.game_board.get_valid_actions()
+            index = random.randrange(0, len(valid_actions))
+            return valid_actions[index]
 
-    def get_next_state(self, action: Action) -> (State, int):
-        moved_player_loc = action.box # after a push action, the player will remain in the original box location
+        return self.choose_best_action(self.state)
+
+    def get_next_state(self, action: Action) -> State:
+        moved_player_loc = action.box  # after a push action, the player will remain in the original box location
 
         # after a push action, the box will be at location original + direction
         moved_box_loc = (action.box[0] + action.direction.value[0], action.box[1] + action.direction.value[1])
-        move_steps = action.action_cost
 
         box_loc = self.state.boxes.copy()
         box_loc.remove(moved_player_loc)
         box_loc.add(moved_box_loc)
         new_state = State(moved_player_loc, box_loc)
 
-        return new_state, move_steps
+        return new_state
 
     def choose_best_action(self, state) -> Action:
-        # TODO: check the q-values dictionary for state to find the one with best q-value
+        # check the q-values dictionary for state to find the one with best q-value
         # key: dict(state: action), value: q-value (number)
-        return Action((0, 0), Move.DOWN)
+        return max(self.quality_values[state].items(), key=operator.itemgetter(1))[0]
 
     def get_quality(self, action, state) -> float:
         if state in self.quality_values and action in self.quality_values[state]:
             return self.quality_values[state][action]
-        return 1.0  # TODO: Correct the default q-value
+        return DEFAULT_QUALITY  # TODO: Change to heuristic/computed value
 
     def get_current_quality(self, action) -> float:
         return self.get_quality(action, self.state)
@@ -101,6 +97,17 @@ class PolicyLearner:
             self.quality_values[self.state] = dict()
         self.quality_values[self.state][action] = new_quality
 
-    def update_state(self, next_state) -> None:
+    def update_state(self, next_state, action) -> None:
         self.game_board.update_locations(next_state)
+        valid_actions = self.game_board.get_valid_actions()
+        self.terminated = self.game_board.goal_reached() or not valid_actions
+        if not valid_actions:
+            # if no valid actions left for next state, it is a terminal state
+            # so, set q-value for current state and chosen action as -infinity
+            self.set_quality(action, MIN_QUALITY)
         self.state = next_state
+
+    def calculate_reward(self, next_state, action) -> float:
+        reward = action.action_cost
+        incentive = self.game_board.find_incentive(next_state)
+        return reward + incentive
