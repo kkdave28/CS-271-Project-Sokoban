@@ -14,7 +14,7 @@ STEPS_MAX = sys.maxsize
 class PolicyLearner:
     def __init__(self, game_board: GameBoard):
         self.initial_state = game_board
-        self.state_board = game_board
+        self.game_board = game_board
         self.state = game_board.get_current_state()
         self.total_steps = 0
         self.terminated = False
@@ -25,7 +25,7 @@ class PolicyLearner:
         self.quality_values = collections.defaultdict(dict)
 
     def reset_state(self) -> None:
-        self.state_board = self.initial_state
+        self.game_board = self.initial_state
         self.total_steps = 0
         self.terminated = False
 
@@ -48,15 +48,19 @@ class PolicyLearner:
                 self.set_quality(action, new_quality)
                 self.update_state(next_state)
 
-            if self.state_board.goal_reached():
+            if self.game_board.goal_reached():
                 self.best_steps = min(self.best_steps, self.total_steps)
 
     def choose_action(self) -> (Action, float, bool):
         # TODO: placeholder for choose action logic
+        valid_actions = self.game_board.get_valid_actions()
         random.seed()
         e = random.random()
         if e < self.exploration_factor:
-            pass  # TODO: choose a random permitted action
+            rand_index = random.randrange(0, len(valid_actions))
+            action = valid_actions[rand_index]
+            
+            return valid_actions[rand_index]
         else:
             self.choose_best_action(self.state)
 
@@ -98,5 +102,5 @@ class PolicyLearner:
         self.quality_values[self.state][action] = new_quality
 
     def update_state(self, next_state) -> None:
-        self.state_board.update_locations(next_state)
+        self.game_board.update_locations(next_state)
         self.state = next_state
