@@ -21,10 +21,10 @@ class Object(Enum):
 
 
 class Move(Enum):
-    U = (-1,0)
-    D = (1,0)
-    L = (0,-1)
-    R = (0,1)
+    U = (-1, 0)
+    D = (1, 0)
+    L = (0, -1)
+    R = (0, 1)
 
 
 """
@@ -35,7 +35,6 @@ class Move(Enum):
 
 
 class GridObject:
-
     grid_object_map = {
         Object.EMPTY: " ",
         Object.WALL: "#",
@@ -114,7 +113,9 @@ class Action:
         self.path = path
 
     def __repr__(self):
-        return "Player move {} to push box at {} {}, {} steps.".format(self.path, self.box, self.direction, self.action_cost)
+        return "Player move {} to push box at {} {}, {} steps.".format(self.path, self.box, self.direction,
+                                                                       self.action_cost)
+
 
 """
     main board object, takes in multiple arguments from the parser class and also basic getters and setters are 
@@ -172,7 +173,7 @@ class GameBoard:
     def set_player_loc(self, x: int, y: int) -> None:
         current_location = self.get_player_loc()
         self.board[current_location[0]][current_location[1]].set_type(Object.EMPTY)
-        self.location = (x,y)
+        self.location = (x, y)
         self.board[x][y].set_type(Object.PLAYER)
 
     def get_player_loc(self) -> tuple:
@@ -200,7 +201,7 @@ class GameBoard:
             # find the path from the player location in reachable_locations to the given origin
             # output the path as a string
             path = ""
-            while reachable_locations[location][1] != None:
+            while reachable_locations[location][1] is not None:
                 # backtrack to the player location
                 parent_location = reachable_locations[location][1]
                 move = (location[0] - parent_location[0], location[1] - parent_location[1])
@@ -208,14 +209,13 @@ class GameBoard:
                 location = parent_location
             return path[::-1]
 
-
-        for (x,y) in self.box_locations:
+        for (x, y) in self.box_locations:
             for move in Move:
                 (i, j) = move.value
                 if self.board[x + i][y + j].is_empty() or self.board[x + i][y + j].is_terminal():
-                    if (x-i, y-j) in reachable_locations.keys():
-                        path = _get_path((x-i, y-j)) + Move(move).name
-                        valid_actions.append(Action((x,y), move, reachable_locations[(x-i, y-j)][0] + 1, path))
+                    if (x - i, y - j) in reachable_locations.keys():
+                        path = _get_path((x - i, y - j)) + Move(move).name
+                        valid_actions.append(Action((x, y), move, reachable_locations[(x - i, y - j)][0] + 1, path))
         return valid_actions
 
     def _get_reachable_locations(self):
@@ -225,21 +225,26 @@ class GameBoard:
         reachable_locations = dict()
         frontier = queue.Queue()
 
-        reachable_locations[self.get_player_loc()] = (0, None) # player location does not have a parent location
-        frontier.put((self.get_player_loc(),0))
+        reachable_locations[self.get_player_loc()] = (0, None)  # player location does not have a parent location
+        frontier.put((self.get_player_loc(), 0))
 
         while not frontier.empty():
-            ((x,y),d) = frontier.get()
+            ((x, y), d) = frontier.get()
             for move in Move:
-                (i,j) = move.value
-                if (x+i, y+j) not in reachable_locations.keys():
-                    if self.board[x+i][y+j].is_empty() or self.board[x+i][y+j].is_terminal():
-                        reachable_locations[(x+i,y+j)] = (d+1, (x,y))
-                        frontier.put(((x-1,y),d+1))
+                (i, j) = move.value
+                if (x + i, y + j) not in reachable_locations.keys():
+                    if self.board[x + i][y + j].is_empty() or self.board[x + i][y + j].is_terminal():
+                        reachable_locations[(x + i, y + j)] = (d + 1, (x, y))
+                        frontier.put(((x - 1, y), d + 1))
         return reachable_locations
 
-    def goal_reached(self):
-        # goal is reached when the set of box_locations equal to the set of terminal_locations
+    def goal_reached(self) -> bool:
+
         if len(self.box_locations.intersection(self.terminal_locations)) == len(self.terminal_locations):
             return True
         return False
+
+    def find_incentive(self, next_state):
+        # find the incentive to be given for the next state as compare to the current state
+        # TODO: to do this, we must compare current and next_state box locations and terminal locations
+        pass
