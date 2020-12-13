@@ -18,11 +18,7 @@ def main():
 
     policyLearner = PolicyLearner(main_board)
 
-    valid_actions = main_board.get_valid_actions()
-    for action in valid_actions:
-        print(action)
-
-
+    policyLearner.learn(2,1)
     print("done")
 
 

@@ -1,6 +1,7 @@
 import collections
 from enum import Enum
 import queue
+import random
 
 """
     Types of grid objects
@@ -96,6 +97,9 @@ class State:
         self.player = player_location
         self.boxes = boxes
 
+    def __repr__(self):
+        return "Player at {} and boxes at {}".format(self.player, self.boxes)
+
 
 """
     Action class for details about an action being performed: moving a box
@@ -138,6 +142,7 @@ class GameBoard:
             self.board[r] = dict()
             for c in range(1, 1 + columns, 1):
                 self.board[r][c] = GridObject(r, c)
+        self.has_stuck_box = False
 
     def init_objects(self, object_coords: list, new_type: Object) -> None:
         for i in range(0, len(object_coords), 2):
@@ -179,16 +184,39 @@ class GameBoard:
     def get_player_loc(self) -> tuple:
         return self.location
 
-    def update_locations(self, state: State) -> None:
-        self.move_player(state.player)
-        # TODO: update box locations from state
-        pass
+    def is_corner_location(self, x, y):
+        if not self.board[x + 1][y].is_wall() and not self.board[x - 1][y].is_wall():
+            return False
+        if not self.board[x][y + 1].is_wall() and not self.board[x][y - 1].is_wall():
+            return False
+        return True
+
+
+    def update_locations(self, new_state: State) -> None:
+        unchanged_boxes = self.box_locations.intersection(new_state.boxes)
+        for (x, y) in self.box_locations - unchanged_boxes:
+            self.board[x][y].set_type(Object.EMPTY)
+
+        for (x,y) in new_state.boxes - unchanged_boxes:
+            # ISSUE: if (x,y) used to be Object.TERMINAL, it will be changed to BOX
+            if not self.board[x][y].is_terminal() and self.is_corner_location(x,y):
+                # the box is stuck at a non-terminal corner, which means game over
+                self.has_stuck_box = True
+            self.board[x][y].set_type(Object.BOX)
+
+        self.box_locations = new_state.boxes
+        self.move_player(new_state.player)
+
 
     def get_current_state(self) -> State:
         # output the current state of the board as a State object
         return State(self.get_player_loc(), self.box_locations)
 
     def get_valid_actions(self) -> [Action]:
+        # if there is a box stuck at corner, there is no valid (meaningful) actions becuase the game is over
+        if self.has_stuck_box:
+            return []
+
         # output a list of actions that are valid given current state
         # an action => box location (x,y) + direction
         # an action is valid if following three conditions are met
@@ -239,7 +267,6 @@ class GameBoard:
         return reachable_locations
 
     def goal_reached(self) -> bool:
-
         if len(self.box_locations.intersection(self.terminal_locations)) == len(self.terminal_locations):
             return True
         return False
@@ -247,4 +274,5 @@ class GameBoard:
     def find_incentive(self, next_state):
         # find the incentive to be given for the next state as compare to the current state
         # TODO: to do this, we must compare current and next_state box locations and terminal locations
-        pass
+
+        return len(next_state.boxes.intersection(self.terminal_locations)) * 10000
