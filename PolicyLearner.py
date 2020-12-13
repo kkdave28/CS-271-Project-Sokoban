@@ -17,7 +17,7 @@ DEFAULT_QUALITY = 0.0  # TODO: Find a good value for this
 
 class PolicyLearner:
     def __init__(self, game_board: GameBoard):
-        self.initial_board = game_board
+        self.initial_board = game_board.copy()
         self.game_board = game_board
         self.state = game_board.get_current_state()
         self.total_steps = 0
@@ -29,6 +29,7 @@ class PolicyLearner:
         self.quality_values = collections.defaultdict(dict)
 
     def reset_state(self) -> None:
+        self.initial_board = self.initial_board.copy()
         self.game_board = self.initial_board
         self.total_steps = 0
         self.terminated = False
@@ -37,12 +38,16 @@ class PolicyLearner:
         current_time = 0
         # total_steps = STEPS_MIN
         while current_time < learning_time: # and (self.total_steps - total_steps > learning_threshold):
-            print("time " + str(current_time))
+            print("----------------------------time " + str(current_time) + "------------------------------")
             # if total_steps == STEPS_MIN:
             #     total_steps = 0
             self.reset_state()
             while not self.terminated:
                 action = self.choose_action()
+                if action is None:
+                    self.terminated = True
+                    print("No actions in this iteration")
+                    break
                 next_state = self.get_next_state(action)
                 reward = self.calculate_reward(next_state, action)
                 self.total_steps += action.action_cost
@@ -80,6 +85,8 @@ class PolicyLearner:
                                                                      - action_quality)
 
                 self.set_quality(old_state, action, new_quality)
+                print(self.quality_values)
+            print("final q table: ", self.quality_values)
             if self.game_board.goal_reached():
                 self.best_steps = min(self.best_steps, self.total_steps)
 

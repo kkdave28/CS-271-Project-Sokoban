@@ -128,7 +128,8 @@ class Action:
 
 
 class GameBoard:
-    def __init__(self, rows: int, columns: int, walls: int, boxes: int, terms: int, player_loc: tuple):
+    def __init__(self, rows: int, columns: int, walls: int, boxes: int, terms: int,
+                 player_loc: tuple, walls_locations:list, boxes_locations:list, terminal_locations:list):
         self.board = collections.defaultdict(dict)
         self.box_locations = set()
         self.terminal_locations = set()
@@ -143,6 +144,19 @@ class GameBoard:
             for c in range(1, 1 + columns, 1):
                 self.board[r][c] = GridObject(r, c)
         self.has_stuck_box = False
+
+        self.original_player_location = tuple(list(player_loc))
+        self.walls_locations = walls_locations
+        self.original_terminal_locations = terminal_locations
+        self.original_box_locations = boxes_locations
+        self.init_objects(walls_locations, Object.WALL)
+        self.init_objects(boxes_locations, Object.BOX)
+        self.init_objects(terminal_locations, Object.TERMINAL)
+        self.init_objects([c for c in player_loc], Object.PLAYER)
+
+    def copy(self):
+        return GameBoard(self.row_count, self.col_count, self.wall_count, self.box_count, self.term_count,
+                         self.original_player_location, self.walls_locations, self.original_box_locations, self.original_terminal_locations)
 
     def init_objects(self, object_coords: list, new_type: Object) -> None:
         for i in range(0, len(object_coords), 2):
@@ -263,7 +277,7 @@ class GameBoard:
                 if (x + i, y + j) not in reachable_locations.keys():
                     if self.board[x + i][y + j].is_empty() or self.board[x + i][y + j].is_terminal():
                         reachable_locations[(x + i, y + j)] = (d + 1, (x, y))
-                        frontier.put(((x - 1, y), d + 1))
+                        frontier.put(((x + i, y + j), d + 1))
         return reachable_locations
 
     def goal_reached(self) -> bool:
