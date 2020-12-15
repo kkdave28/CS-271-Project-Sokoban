@@ -2,8 +2,10 @@ import collections
 import operator
 import random
 import sys
+import math
+import time
 
-from GameBoard import GameBoard, State, Action
+from GameBoard import GameBoard, State, Action, Object
 
 """
     Constants
@@ -16,33 +18,45 @@ DEFAULT_QUALITY = 0.0  # TODO: Find a good value for this
 
 
 class PolicyLearner:
-    def __init__(self, game_board: GameBoard):
-        self.initial_board = game_board.copy()
+    def __init__(self, game_board: GameBoard, original_player_loc, original_walls_loc, original_boxes_loc, original_terminal_loc):
         self.game_board = game_board
         self.state = game_board.get_current_state()
         self.total_steps = 0
         self.terminated = False
-        self.learning_rate = 1.0
+        self.learning_rate = 0.7
         self.discount = 1.0
         self.exploration_factor = 1
         self.best_steps = STEPS_MAX
         self.quality_values = collections.defaultdict(dict)
 
+        self.original_player_loc = original_player_loc
+        self.original_walls_loc = original_walls_loc
+        self.original_boxes_loc = original_boxes_loc
+        self.original_terminal_loc = original_terminal_loc
+
     def reset_state(self) -> None:
-        self.initial_board = self.initial_board.copy()
-        self.game_board = self.initial_board
+        self.game_board = GameBoard(self.game_board.row_count, self.game_board.col_count,
+                                    self.game_board.wall_count, self.game_board.box_count,
+                                    self.game_board.term_count, self.original_player_loc)
+        self.game_board.init_objects(self.original_walls_loc, Object.WALL)
+        self.game_board.init_objects(self.original_boxes_loc, Object.BOX)
+        self.game_board.init_objects(self.original_terminal_loc, Object.TERMINAL)
+        self.game_board.init_objects([c for c in self.original_player_loc], Object.PLAYER)
         self.total_steps = 0
         self.terminated = False
 
-    def learn(self, learning_time: int, learning_threshold: float) -> None:
+    def learn(self, learning_time: int) -> None:
+        start = time.time()
         current_time = 0
         # total_steps = STEPS_MIN
-        while current_time < learning_time: # and (self.total_steps - total_steps > learning_threshold):
+        while current_time < learning_time:  # and (self.total_steps - total_steps > learning_threshold):
             print("----------------------------time " + str(current_time) + "------------------------------")
             # if total_steps == STEPS_MIN:
             #     total_steps = 0
             self.reset_state()
-            self.exploration_factor = (learning_time - current_time) / learning_time
+            # self.exploration_factor = math.cos((current_time / learning_time) * math.pi / 2)
+            self.exploration_factor = math.sqrt(1 - (current_time / learning_time) ** 2)
+            self.discount = math.sin((current_time / learning_time) * math.pi / 2)
             # self.learning_rate = (learning_time - current_time) / learning_time
             while not self.terminated:
                 action = self.choose_action()
@@ -102,6 +116,7 @@ class PolicyLearner:
 
         final_total_steps = 0
         self.reset_state()
+        best_action = None
         while not self.terminated:
             current_state = self.game_board.get_current_state()
             if current_state in self.quality_values:
@@ -120,7 +135,8 @@ class PolicyLearner:
         print(final_total_steps)
         print("Solution is found")
 
-
+        end = time.time()
+        print("learn function took ", end - start)
 
     def choose_action(self) -> (Action, float, bool):
         random.seed()
@@ -147,7 +163,7 @@ class PolicyLearner:
 
         return new_state
 
-    def choose_best_action(self) -> Action:
+    def choose_best_action(self):
         # check the q-values dictionary for state to find the one with best q-value
         # key: dict(state: action), value: q-value (number)
         current_state = self.game_board.get_current_state()
