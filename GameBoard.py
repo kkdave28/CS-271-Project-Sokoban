@@ -97,6 +97,12 @@ class State:
         self.player = player_location
         self.boxes = boxes
 
+    def __hash__(self):
+        return hash(tuple((self.player, tuple(list(self.boxes)))))
+
+    def __eq__(self, other):
+        return isinstance(other,State) and self.player == other.player and self.boxes == other.boxes
+
     def __repr__(self):
         return "Player at {} and boxes at {}".format(self.player, self.boxes)
 
@@ -289,4 +295,4 @@ class GameBoard:
         # find the incentive to be given for the next state as compare to the current state
         # TODO: to do this, we must compare current and next_state box locations and terminal locations
 
-        return len(next_state.boxes.intersection(self.terminal_locations)) * 10000
+        return len(next_state.boxes.intersection(self.terminal_locations)) * 3

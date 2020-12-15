@@ -18,7 +18,7 @@ def main():
 
     policyLearner = PolicyLearner(main_board)
 
-    policyLearner.learn(4,1)
+    policyLearner.learn(10000,1)
     print("done")
 
 
