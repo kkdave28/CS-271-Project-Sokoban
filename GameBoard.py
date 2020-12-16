@@ -1,7 +1,8 @@
 import collections
 from enum import Enum
 import queue
-import random
+import math
+import sys
 
 """
     Types of grid objects
@@ -45,7 +46,7 @@ class GridObject:
         return self.Type
 
     def set_type(self, new_type: Object) -> None:
-        if (new_type == Object.TERMINAL):
+        if new_type == Object.TERMINAL:
             self.is_terminal_loc = True
 
         if (new_type == Object.TERMINAL and self.Type == Object.BOX) or (new_type == Object.BOX and self.Type == Object.TERMINAL):
@@ -58,9 +59,6 @@ class GridObject:
             return
 
         self.Type = new_type
-
-
-
 
     def print_grid_object(self) -> None:
         print(self.Type.value, end="")
@@ -80,6 +78,8 @@ class GridObject:
     def is_terminal(self) -> bool:
         return self.is_terminal_loc
 
+    def is_terminal_with_box(self) -> bool:
+        return Object.TERMINAL_WITH_BOX == self.Type
 
 """
     State class to hold just player and box locations
@@ -202,22 +202,26 @@ class GameBoard:
         
         return True
 
-
     def update_locations(self, new_state: State) -> None:
         unchanged_boxes = self.box_locations.intersection(new_state.boxes)
         for (x, y) in self.box_locations - unchanged_boxes:
-            self.board[x][y].set_type(Object.EMPTY)
+            location = self.board[x][y]
+            if location.is_terminal():
+                location.set_type(Object.TERMINAL)
+            else:
+                location.set_type(Object.EMPTY)
 
-        for (x,y) in new_state.boxes - unchanged_boxes:
-            # ISSUE: if (x,y) used to be Object.TERMINAL, it will be changed to BOX
-            if not self.board[x][y].is_terminal() and self.is_corner_location(x,y):
+        for (x, y) in new_state.boxes - unchanged_boxes:
+            if not self.board[x][y].is_terminal() and self.is_corner_location(x, y):
                 # the box is stuck at a non-terminal corner, which means game over
                 self.has_stuck_box = True
-            self.board[x][y].set_type(Object.BOX)
+            if self.board[x][y].is_terminal() and not self.board[x][y].is_terminal_with_box():
+                self.board[x][y].set_type(Object.TERMINAL_WITH_BOX)
+            elif self.board[x][y].is_empty():
+                self.board[x][y].set_type(Object.BOX)
 
         self.box_locations = new_state.boxes
         self.move_player(new_state.player)
-
 
     def get_current_state(self) -> State:
         # output the current state of the board as a State object
@@ -251,7 +255,8 @@ class GameBoard:
         for (x, y) in self.box_locations:
             for move in Move:
                 (i, j) = move.value
-                if self.board[x + i][y + j].is_empty() or self.board[x + i][y + j].is_terminal():
+                if self.board[x + i][y + j].is_empty() or (not self.board[x + i][y + j].is_terminal_with_box()
+                                                           and self.board[x + i][y + j].is_terminal()):
                     if (x - i, y - j) in reachable_locations.keys():
                         path = _get_path((x - i, y - j)) + Move(move).name
                         valid_actions.append(Action((x, y), move, reachable_locations[(x - i, y - j)][0] + 1, path))
@@ -272,7 +277,8 @@ class GameBoard:
             for move in Move:
                 (i, j) = move.value
                 if (x + i, y + j) not in reachable_locations.keys():
-                    if self.board[x + i][y + j].is_empty() or self.board[x + i][y + j].is_terminal():
+                    if self.board[x + i][y + j].is_empty() or (not self.board[x + i][y + j].is_terminal_with_box()
+                                                               and self.board[x + i][y + j].is_terminal()):
                         reachable_locations[(x + i, y + j)] = (d + 1, (x, y))
                         frontier.put(((x + i, y + j), d + 1))
         return reachable_locations
@@ -284,5 +290,29 @@ class GameBoard:
 
     def find_incentive(self, next_state):
         # find the incentive to be given for the next state as compare to the current state
+        curr_total_dist = self._find_distance_to_terminal(self.get_current_state().boxes.copy(), self.terminal_locations.copy())
+        new_total_dist = self._find_distance_to_terminal(next_state.boxes.copy(), self.terminal_locations.copy())
+        return curr_total_dist - new_total_dist
 
-        return len(next_state.boxes.intersection(self.terminal_locations)) * 2
+    def get_placed_boxes(self, state: State) -> int:
+        return len(state.boxes.intersection(self.terminal_locations)) * 3
+
+    def _find_distance_to_terminal(self, boxes: set, terminals: set) -> int:
+        total_distance = 0
+        for box in boxes:
+            min_dist = sys.maxsize
+            nearest_terminal = ""
+            for terminal in terminals:
+                distance_from_terminal = self._find_distance(box[0], box[1], terminal[0], terminal[1])
+                if distance_from_terminal < min_dist:
+                    min_dist = distance_from_terminal
+                    nearest_terminal = terminal
+            terminals.remove(nearest_terminal)
+            total_distance += min_dist
+        return total_distance
+
+    def _find_distance(self, x1, y1, x2, y2):
+        return abs(y2-y1) + abs(x2-x1)
+
+
+

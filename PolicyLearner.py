@@ -24,7 +24,7 @@ class PolicyLearner:
         self.total_steps = 0
         self.terminated = False
         self.learning_rate = 1.0
-        self.discount = 0.97
+        self.discount = 0.9
         self.exploration_factor = 1
         self.best_steps = STEPS_MAX
         self.quality_values = collections.defaultdict(dict)
@@ -50,20 +50,27 @@ class PolicyLearner:
         current_time = 0
         # total_steps = STEPS_MIN
         while current_time < learning_time:  # and (self.total_steps - total_steps > learning_threshold):
-            print("----------------------------time " + str(current_time) + "------------------------------")
+            if current_time % 1000 == 0:
+                print("----------------------------time " + str(current_time) + "------------------------------")
+
             # if total_steps == STEPS_MIN:
             #     total_steps = 0
             self.reset_state()
             # self.exploration_factor = math.cos((current_time / learning_time) * math.pi / 2)
-            # self.exploration_factor = (learning_time - current_time) / learning_time
-            self.exploration_factor = math.sqrt(1 - (current_time / learning_time) ** 2)
-            # self.discount = self.discount * (learning_time - current_time) / learning_time
-            self.learning_rate = (learning_time - current_time) / learning_time
+            self.exploration_factor = (learning_time - current_time) / learning_time
+            # self.exploration_factor = math.sqrt(1 - (current_time / learning_time) ** 2.5)
+            # self.exploration_factor = math.sqrt(1 - (current_time / learning_time) ** 2)
+            # self.discount = current_time / learning_time
+            self.discount = (math.e + 1) / math.e - 1 / (math.exp(current_time / learning_time))
+            # self.learning_rate = math.sqrt(1 - (current_time / learning_time) ** 3)
+            # self.learning_rate = (learning_time - current_time) / learning_time
+            self.learning_rate = math.cos((current_time / learning_time) * math.pi / 2)
+            # self.learning_rate = 1 / math.exp(current_time / learning_time)
             while not self.terminated:
                 action = self.choose_action()
                 if action is None:
                     self.terminated = True
-                    print("No actions in this iteration")
+                    # print("No actions in this iteration")
                     break
                 next_state = self.get_next_state(action)
                 reward = self.calculate_reward(next_state, action)
@@ -88,7 +95,8 @@ class PolicyLearner:
                 if self.terminated:
                     # goal state reached
                     self.set_quality(old_state, action, MAX_QUALITY)
-                    print("Goal state reached!!!!!!!!!!!!!!!!!!!!!!!!")
+                    print("----------------------------time " + str(current_time) + "------------------------------")
+                    print("Goal state reached!")
                     break
 
                 new_action = self.choose_best_action()
@@ -98,7 +106,7 @@ class PolicyLearner:
                     #     # so, set q-value for current state and chosen action as -infinity
                     self.terminated = True
                     self.set_quality(old_state, action, MIN_QUALITY)
-                    print("No more actions")
+                    # print("No more actions")
                     break
                 new_action_quality = self.get_quality(new_action, self.game_board.get_current_state())
 
@@ -185,7 +193,7 @@ class PolicyLearner:
     def get_quality(self, action, state) -> float:
         if state in self.quality_values and action in self.quality_values[state]:
             return self.quality_values[state][action]
-        return DEFAULT_QUALITY  # TODO: Change to heuristic/computed value
+        return DEFAULT_QUALITY
 
     def get_current_quality(self, action) -> float:
         return self.get_quality(action, self.game_board.get_current_state())
@@ -202,4 +210,5 @@ class PolicyLearner:
     def calculate_reward(self, next_state, action) -> float:
         reward = -action.action_cost
         incentive = self.game_board.find_incentive(next_state)
+        # incentive = self.game_board.get_placed_boxes(next_state)
         return reward + incentive
