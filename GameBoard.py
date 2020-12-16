@@ -212,7 +212,8 @@ class GameBoard:
         if self.board[x + 0][y + 1].is_obstacle():
             obstacle_counts[1] += 1
             obstacle_counts[2] += 1
-            return max(obstacle_counts) == 3
+            if max(obstacle_counts) == 3:
+                return True
 
         if self.board[x + 1][y + 1].is_obstacle():
             obstacle_counts[2] += 1
@@ -220,7 +221,8 @@ class GameBoard:
         if self.board[x + 1][y + 0].is_obstacle():
             obstacle_counts[2] += 1
             obstacle_counts[3] += 1
-            return max(obstacle_counts) == 3
+            if max(obstacle_counts) == 3:
+                return True
 
         if self.board[x + 1][y - 1].is_obstacle():
             obstacle_counts[3] += 1
@@ -228,7 +230,8 @@ class GameBoard:
         if self.board[x + 0][y - 1].is_obstacle():
             obstacle_counts[0] += 1
             obstacle_counts[3] += 1
-            return max(obstacle_counts) == 3
+            if max(obstacle_counts) == 3:
+                return True
 
         if not self.board[x + 1][y].is_wall() and not self.board[x - 1][y].is_wall():
             return False
@@ -237,9 +240,8 @@ class GameBoard:
         return True
 
     def update_locations(self, new_state: State) -> None:
+        self.move_player(new_state.player)
         unchanged_boxes = self.box_locations.intersection(new_state.boxes)
-        for (x, y) in self.box_locations - unchanged_boxes:
-            self.board[x][y].set_type(Object.EMPTY)
 
         for (x,y) in new_state.boxes - unchanged_boxes:
             # ISSUE: if (x,y) used to be Object.TERMINAL, it will be changed to BOX
@@ -249,8 +251,6 @@ class GameBoard:
             self.board[x][y].set_type(Object.BOX)
 
         self.box_locations = new_state.boxes
-        self.move_player(new_state.player)
-
 
     def get_current_state(self) -> State:
         # output the current state of the board as a State object
