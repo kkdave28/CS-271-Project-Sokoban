@@ -320,12 +320,9 @@ class GameBoard:
 
     def find_incentive(self, next_state):
         # find the incentive to be given for the next state as compare to the current state
-        curr_total_dist = self._find_distance_to_terminal(self.get_current_state().boxes.copy(), self.terminal_locations.copy())
-        new_total_dist = self._find_distance_to_terminal(next_state.boxes.copy(), self.terminal_locations.copy())
-        return curr_total_dist - new_total_dist + self.get_placed_boxes(next_state)
-
-    def get_placed_boxes(self, state: State) -> int:
-        return len(state.boxes.intersection(self.terminal_locations)) * 3
+        curr_total_dist = self._find_distance_to_terminal(self.get_current_state().boxes, self.terminal_locations.copy())
+        new_total_dist = self._find_distance_to_terminal(next_state.boxes, self.terminal_locations.copy())
+        return curr_total_dist - new_total_dist
 
     def _find_distance_to_terminal(self, boxes: set, terminals: set) -> int:
         total_distance = 0

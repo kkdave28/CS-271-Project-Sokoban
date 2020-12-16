@@ -13,7 +13,7 @@ from GameBoard import GameBoard, State, Action, Object
 STEPS_MIN = - sys.maxsize - 1
 STEPS_MAX = sys.maxsize
 MIN_QUALITY = - sys.maxsize - 1
-MAX_QUALITY = sys.maxsize
+MAX_QUALITY = 100
 DEFAULT_QUALITY = 0.0  # TODO: Find a good value for this
 
 
@@ -21,12 +21,10 @@ class PolicyLearner:
     def __init__(self, game_board: GameBoard, original_player_loc, original_walls_loc, original_boxes_loc, original_terminal_loc):
         self.game_board = game_board
         self.state = game_board.get_current_state()
-        self.total_steps = 0
         self.terminated = False
         self.learning_rate = 1.0
-        self.discount = 0.9
-        self.exploration_factor = 1
-        self.best_steps = STEPS_MAX
+        self.discount = 1.0
+        self.exploration_factor = 1.0
         self.quality_values = collections.defaultdict(dict)
 
         self.original_player_loc = original_player_loc
@@ -42,29 +40,25 @@ class PolicyLearner:
         self.game_board.init_objects(self.original_boxes_loc, Object.BOX)
         self.game_board.init_objects(self.original_terminal_loc, Object.TERMINAL)
         self.game_board.init_objects([c for c in self.original_player_loc], Object.PLAYER)
-        self.total_steps = 0
         self.terminated = False
 
     def learn(self, learning_time: int) -> None:
         start = time.time()
         current_time = 0
-        # total_steps = STEPS_MIN
-        while current_time < learning_time:  # and (self.total_steps - total_steps > learning_threshold):
+        while current_time < learning_time:
             if current_time % 1000 == 0:
                 print("----------------------------time " + str(current_time) + "------------------------------")
 
-            # if total_steps == STEPS_MIN:
-            #     total_steps = 0
             self.reset_state()
             # self.exploration_factor = math.cos((current_time / learning_time) * math.pi / 2)
             self.exploration_factor = (learning_time - current_time) / learning_time
             # self.exploration_factor = math.sqrt(1 - (current_time / learning_time) ** 2.5)
             # self.exploration_factor = math.sqrt(1 - (current_time / learning_time) ** 2)
             # self.discount = current_time / learning_time
-            self.discount = (math.e + 1) / math.e - 1 / (math.exp(current_time / learning_time))
+            # self.discount = (math.e + 1) / math.e - 1 / (math.exp(current_time / learning_time))
             # self.learning_rate = math.sqrt(1 - (current_time / learning_time) ** 3)
             # self.learning_rate = (learning_time - current_time) / learning_time
-            self.learning_rate = math.cos((current_time / learning_time) * math.pi / 2)
+            # self.learning_rate = math.cos((current_time / learning_time) * math.pi / 2)
             # self.learning_rate = 1 / math.exp(current_time / learning_time)
             while not self.terminated:
                 action = self.choose_action()
@@ -73,8 +67,8 @@ class PolicyLearner:
                     # print("No actions in this iteration")
                     break
                 next_state = self.get_next_state(action)
-                reward = self.calculate_reward(next_state, action)
-                self.total_steps += action.action_cost
+                # reward = self.calculate_reward(next_state, action)
+                reward = -action.action_cost
                 old_state = self.game_board.get_current_state()
                 action_quality = self.get_current_quality(action)   # old action quality
 
@@ -94,9 +88,9 @@ class PolicyLearner:
 
                 if self.terminated:
                     # goal state reached
-                    self.set_quality(old_state, action, MAX_QUALITY)
-                    print("----------------------------time " + str(current_time) + "------------------------------")
-                    print("Goal state reached!")
+                    self.set_quality(old_state, action, MAX_QUALITY - action.action_cost)
+                    # print("----------------------------time " + str(current_time) + "------------------------------")
+                    # print("Goal state reached!")
                     break
 
                 new_action = self.choose_best_action()
@@ -112,12 +106,8 @@ class PolicyLearner:
 
                 new_quality = action_quality + self.learning_rate * (reward + self.discount * new_action_quality
                                                                      - action_quality)
-
                 self.set_quality(old_state, action, new_quality)
                 # print(self.quality_values)
-
-            if self.game_board.goal_reached():
-                self.best_steps = min(self.best_steps, self.total_steps)
 
             current_time += 1
         print("Time is up. done learning")
@@ -126,29 +116,30 @@ class PolicyLearner:
         final_total_steps = 0
         self.reset_state()
         best_action = None
+        visited_states = set()
         while not self.terminated:
             current_state = self.game_board.get_current_state()
             if current_state in self.quality_values:
+                if current_state in visited_states:
+                    print("states start to loop, no solution found")
+                    break
+                visited_states.add(current_state)
                 self.game_board.debug()
-                print("Looking for actions")
-                for current_action in self.quality_values[current_state]:
-                    print(current_action)
-                    print(self.quality_values[current_state][current_action])
+                # print("Looking for actions")
+                # for current_action in self.quality_values[current_state]:
+                #     print(current_action)
+                #     print(self.quality_values[current_state][current_action])
                 best_action = max(self.quality_values[current_state].items(), key=operator.itemgetter(1))[0]
 
                 final_total_steps += best_action.action_cost
-                self.game_board.debug()
-                print(best_action)
                 print("Chosen action:")
                 print(best_action)
-                final_total_steps += best_action.action_cost
                 next_state = self.get_next_state(best_action)
                 self.update_state(next_state)
             else:
                 print(current_state)
                 print("not in q table")
                 self.terminated = True
-        print(best_action)
         self.game_board.debug()
         print(final_total_steps)
         print("Solution is found")
