@@ -26,6 +26,7 @@ class PolicyLearner:
         self.discount = 1.0
         self.exploration_factor = 1.0
         self.quality_values = collections.defaultdict(dict)
+        self.max_quality_action = dict()  # key: State,  value: (action, quality_value)
 
         self.original_player_loc = original_player_loc
         self.original_walls_loc = original_walls_loc
@@ -44,22 +45,13 @@ class PolicyLearner:
 
     def learn(self, learning_time: int) -> None:
         start = time.time()
-        current_time = 0
-        while current_time < learning_time:
-            if current_time % 1000 == 0:
-                print("----------------------------time " + str(current_time) + "------------------------------")
+        iteration_count = 0
+        while time.time() - start < learning_time * 60:
+            if iteration_count % 1000 == 0:
+                print("----------------------------iteration " + str(iteration_count) + "------------------------------")
 
             self.reset_state()
-            # self.exploration_factor = math.cos((current_time / learning_time) * math.pi / 2)
-            self.exploration_factor = (learning_time - current_time) / learning_time
-            # self.exploration_factor = math.sqrt(1 - (current_time / learning_time) ** 2.5)
-            # self.exploration_factor = math.sqrt(1 - (current_time / learning_time) ** 2)
-            # self.discount = current_time / learning_time
-            # self.discount = (math.e + 1) / math.e - 1 / (math.exp(current_time / learning_time))
-            # self.learning_rate = math.sqrt(1 - (current_time / learning_time) ** 3)
-            # self.learning_rate = (learning_time - current_time) / learning_time
-            # self.learning_rate = math.cos((current_time / learning_time) * math.pi / 2)
-            # self.learning_rate = 1 / math.exp(current_time / learning_time)
+            self.exploration_factor = min(1 - (time.time() - start) / (learning_time * 60), 1)
             while not self.terminated:
                 action = self.choose_action()
                 if action is None:
@@ -73,18 +65,6 @@ class PolicyLearner:
                 action_quality = self.get_current_quality(action)   # old action quality
 
                 self.update_state(next_state)
-
-                # print("old state: ", old_state)
-                # print("take action: ", action)
-                # print("reward: ", reward)
-                # print("action_quality: ", action_quality)
-                # print("new state: ", next_state)
-
-                # print("---------------------------------------------------------")
-                # self.game_board.debug()
-                # print("---------------------------------------------------------")
-
-                # print(self.quality_values)
 
                 if self.terminated:
                     # goal state reached
@@ -109,11 +89,12 @@ class PolicyLearner:
                 self.set_quality(old_state, action, new_quality)
                 # print(self.quality_values)
 
-            current_time += 1
-        print("Time is up. done learning")
+            iteration_count += 1
+        # print("Time is up. done learning")
         # print("final q table: ", self.quality_values)
 
         final_total_steps = 0
+        final_path = ""
         self.reset_state()
         best_action = None
         visited_states = set()
@@ -121,31 +102,31 @@ class PolicyLearner:
             current_state = self.game_board.get_current_state()
             if current_state in self.quality_values:
                 if current_state in visited_states:
-                    print("states start to loop, no solution found")
-                    break
+                    print("Failed to find a solution")
+                    return None
                 visited_states.add(current_state)
-                self.game_board.debug()
+                # self.game_board.debug()
                 # print("Looking for actions")
                 # for current_action in self.quality_values[current_state]:
                 #     print(current_action)
                 #     print(self.quality_values[current_state][current_action])
-                best_action = max(self.quality_values[current_state].items(), key=operator.itemgetter(1))[0]
+
+                # best_action = max(self.quality_values[current_state].items(), key=operator.itemgetter(1))[0]
+                best_action = self.max_quality_action[current_state][0]
 
                 final_total_steps += best_action.action_cost
-                print("Chosen action:")
-                print(best_action)
+                final_path += best_action.path + " "
+                # print("Chosen action:")
+                # print(best_action)
                 next_state = self.get_next_state(best_action)
                 self.update_state(next_state)
             else:
-                print(current_state)
-                print("not in q table")
-                self.terminated = True
-        self.game_board.debug()
-        print(final_total_steps)
-        print("Solution is found")
+                # print(current_state)
+                print("Failed to find a solution")
+                return None
+        print(str(final_total_steps) + " " + final_path)
+        return None
 
-        end = time.time()
-        print("learn function took ", end - start)
 
     def choose_action(self) -> (Action, float, bool):
         random.seed()
@@ -177,7 +158,8 @@ class PolicyLearner:
         # key: dict(state: action), value: q-value (number)
         current_state = self.game_board.get_current_state()
         if current_state in self.quality_values:
-            return max(self.quality_values[current_state].items(), key=operator.itemgetter(1))[0]
+            return self.max_quality_action[current_state][0]
+            # return max(self.quality_values[current_state].items(), key=operator.itemgetter(1))[0]
 
         valid_actions = self.game_board.get_valid_actions()
         if len(valid_actions) == 0:
@@ -197,6 +179,10 @@ class PolicyLearner:
         if state not in self.quality_values:
             self.quality_values[state] = dict()
         self.quality_values[state][action] = new_quality
+
+        if state not in self.max_quality_action or self.max_quality_action[state][1] < new_quality:
+            # update the best action for this state
+            self.max_quality_action[state] = (action, new_quality)
 
     def update_state(self, next_state) -> None:
         self.game_board.update_locations(next_state)

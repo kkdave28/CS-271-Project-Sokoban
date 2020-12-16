@@ -105,7 +105,7 @@ class State:
         return hash(tuple((self.player, tuple(list(self.boxes)))))
 
     def __eq__(self, other):
-        return isinstance(other, State) and self.player == other.player and self.boxes == other.boxes
+        return isinstance(other, State) and hash(self) == hash(other)
 
     def __repr__(self):
         return "Player at {} and boxes at {}".format(self.player, self.boxes)
