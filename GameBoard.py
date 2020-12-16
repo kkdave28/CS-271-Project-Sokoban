@@ -1,4 +1,5 @@
 import collections
+import sys
 from enum import Enum
 import queue
 import random
@@ -15,6 +16,7 @@ class Object(Enum):
     TERMINAL = "."
     PLAYER = "@"
     TERMINAL_WITH_BOX = "*"
+
 
 """
     Movement directions 
@@ -48,7 +50,8 @@ class GridObject:
         if (new_type == Object.TERMINAL):
             self.is_terminal_loc = True
 
-        if (new_type == Object.TERMINAL and self.Type == Object.BOX) or (new_type == Object.BOX and self.Type == Object.TERMINAL):
+        if (new_type == Object.TERMINAL and self.Type == Object.BOX) or (
+                new_type == Object.BOX and self.Type == Object.TERMINAL):
             self.Type = Object.TERMINAL_WITH_BOX
             self.is_terminal_loc = True
             return
@@ -102,7 +105,7 @@ class State:
         return hash(tuple((self.player, tuple(list(self.boxes)))))
 
     def __eq__(self, other):
-        return isinstance(other,State) and self.player == other.player and self.boxes == other.boxes
+        return isinstance(other, State) and self.player == other.player and self.boxes == other.boxes
 
     def __repr__(self):
         return "Player at {} and boxes at {}".format(self.player, self.boxes)
@@ -128,7 +131,7 @@ class Action:
 
     def __eq__(self, other):
         return isinstance(other, Action) and self.__hash__() == other.__hash__()
-    
+
     def __repr__(self):
         return "Player move {} to push box at {} {}, {} steps.".format(self.path, self.box, self.direction,
                                                                        self.action_cost)
@@ -243,9 +246,9 @@ class GameBoard:
         self.move_player(new_state.player)
         unchanged_boxes = self.box_locations.intersection(new_state.boxes)
 
-        for (x,y) in new_state.boxes - unchanged_boxes:
+        for (x, y) in new_state.boxes - unchanged_boxes:
             # ISSUE: if (x,y) used to be Object.TERMINAL, it will be changed to BOX
-            if not self.board[x][y].is_terminal() and self.is_corner_location(x,y):
+            if not self.board[x][y].is_terminal() and self.is_corner_location(x, y):
                 # the box is stuck at a non-terminal corner, which means game over
                 self.has_stuck_box = True
             self.board[x][y].set_type(Object.BOX)
@@ -317,5 +320,29 @@ class GameBoard:
 
     def find_incentive(self, next_state):
         # find the incentive to be given for the next state as compare to the current state
+        curr_total_dist = self._find_distance_to_terminal(self.get_current_state().boxes.copy(), self.terminal_locations.copy())
+        new_total_dist = self._find_distance_to_terminal(next_state.boxes.copy(), self.terminal_locations.copy())
+        return curr_total_dist - new_total_dist + self.get_placed_boxes(next_state)
 
-        return len(next_state.boxes.intersection(self.terminal_locations)) * 5
+    def get_placed_boxes(self, state: State) -> int:
+        return len(state.boxes.intersection(self.terminal_locations)) * 3
+
+    def _find_distance_to_terminal(self, boxes: set, terminals: set) -> int:
+        total_distance = 0
+        for box in boxes:
+            min_dist = sys.maxsize
+            nearest_terminal = ""
+            for terminal in terminals:
+                distance_from_terminal = self._find_distance(box[0], box[1], terminal[0], terminal[1])
+                if distance_from_terminal < min_dist:
+                    min_dist = distance_from_terminal
+                    nearest_terminal = terminal
+            terminals.remove(nearest_terminal)
+            total_distance += min_dist
+        return total_distance
+
+    def _find_distance(self, x1, y1, x2, y2):
+        return abs(y2 - y1) + abs(x2 - x1)
+
+
+
