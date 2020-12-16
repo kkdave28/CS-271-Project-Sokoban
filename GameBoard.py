@@ -2,7 +2,6 @@ import collections
 import sys
 from enum import Enum
 import queue
-import random
 
 """
     Types of grid objects

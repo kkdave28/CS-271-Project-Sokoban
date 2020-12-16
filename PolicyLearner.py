@@ -13,7 +13,7 @@ from GameBoard import GameBoard, State, Action, Object
 STEPS_MIN = - sys.maxsize - 1
 STEPS_MAX = sys.maxsize
 MIN_QUALITY = - sys.maxsize - 1
-MAX_QUALITY = 100
+MAX_QUALITY = sys.maxsize
 DEFAULT_QUALITY = 0.0  # TODO: Find a good value for this
 
 
