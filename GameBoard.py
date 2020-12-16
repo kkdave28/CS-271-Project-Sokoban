@@ -1,7 +1,7 @@
 import collections
+import sys
 from enum import Enum
 import queue
-import random
 
 """
     Types of grid objects
@@ -9,11 +9,12 @@ import random
 
 
 class Object(Enum):
-    EMPTY = 0
-    WALL = 1
-    BOX = 2
-    TERMINAL = 3
-    PLAYER = 4
+    EMPTY = " "
+    WALL = "#"
+    BOX = "$"
+    TERMINAL = "."
+    PLAYER = "@"
+    TERMINAL_WITH_BOX = "*"
 
 
 """
@@ -36,37 +37,32 @@ class Move(Enum):
 
 
 class GridObject:
-    grid_object_map = {
-        Object.EMPTY: " ",
-        Object.WALL: "#",
-        Object.BOX: "$",
-        Object.TERMINAL: ".",
-        Object.PLAYER: "@"
-    }
-
-    def __init__(self, x_coord, y_coord):
+    def __init__(self):
         self.Type = Object.EMPTY
-        self.x = x_coord
-        self.y = y_coord
+        self.is_terminal_loc = False
+        self.has_player = False
 
     def get_type(self) -> Object:
         return self.Type
 
     def set_type(self, new_type: Object) -> None:
+        if (new_type == Object.TERMINAL):
+            self.is_terminal_loc = True
+
+        if (new_type == Object.TERMINAL and self.Type == Object.BOX) or (
+                new_type == Object.BOX and self.Type == Object.TERMINAL):
+            self.Type = Object.TERMINAL_WITH_BOX
+            self.is_terminal_loc = True
+            return
+
+        if self.is_terminal_loc and new_type == Object.EMPTY:
+            self.Type = Object.TERMINAL
+            return
+
         self.Type = new_type
 
-    def get_x_coord(self) -> int:
-        return self.x
-
-    def get_y_coord(self) -> int:
-        return self.y
-
-    def set_coords(self, x_coord, y_coord) -> None:
-        self.x = x_coord
-        self.y = y_coord
-
     def print_grid_object(self) -> None:
-        print(self.grid_object_map[self.Type], end="")
+        print(self.Type.value, end="")
 
     def is_empty(self) -> bool:
         return Object.EMPTY == self.Type
@@ -82,6 +78,13 @@ class GridObject:
 
     def is_terminal(self) -> bool:
         return Object.TERMINAL == self.Type
+
+    def is_terminal_with_box(self) -> bool:
+        return Object.TERMINAL_WITH_BOX == self.Type
+
+    def is_obstacle(self) -> bool:
+        return self.is_wall() or self.is_box() or self.is_terminal_with_box()
+
 
 
 """
@@ -101,7 +104,7 @@ class State:
         return hash(tuple((self.player, tuple(list(self.boxes)))))
 
     def __eq__(self, other):
-        return isinstance(other,State) and self.player == other.player and self.boxes == other.boxes
+        return isinstance(other, State) and hash(self) == hash(other)
 
     def __repr__(self):
         return "Player at {} and boxes at {}".format(self.player, self.boxes)
@@ -122,6 +125,12 @@ class Action:
         self.action_cost = action_cost
         self.path = path
 
+    def __hash__(self):
+        return hash(tuple((self.box, self.direction, self.action_cost, self.path)))
+
+    def __eq__(self, other):
+        return isinstance(other, Action) and self.__hash__() == other.__hash__()
+
     def __repr__(self):
         return "Player move {} to push box at {} {}, {} steps.".format(self.path, self.box, self.direction,
                                                                        self.action_cost)
@@ -134,8 +143,7 @@ class Action:
 
 
 class GameBoard:
-    def __init__(self, rows: int, columns: int, walls: int, boxes: int, terms: int,
-                 player_loc: tuple, walls_locations:list, boxes_locations:list, terminal_locations:list):
+    def __init__(self, rows: int, columns: int, walls: int, boxes: int, terms: int, player_loc: tuple):
         self.board = collections.defaultdict(dict)
         self.box_locations = set()
         self.terminal_locations = set()
@@ -148,21 +156,8 @@ class GameBoard:
         for r in range(1, 1 + rows, 1):
             self.board[r] = dict()
             for c in range(1, 1 + columns, 1):
-                self.board[r][c] = GridObject(r, c)
+                self.board[r][c] = GridObject()
         self.has_stuck_box = False
-
-        self.original_player_location = tuple(list(player_loc))
-        self.walls_locations = walls_locations
-        self.original_terminal_locations = terminal_locations
-        self.original_box_locations = boxes_locations
-        self.init_objects(walls_locations, Object.WALL)
-        self.init_objects(boxes_locations, Object.BOX)
-        self.init_objects(terminal_locations, Object.TERMINAL)
-        self.init_objects([c for c in player_loc], Object.PLAYER)
-
-    def copy(self):
-        return GameBoard(self.row_count, self.col_count, self.wall_count, self.box_count, self.term_count,
-                         self.original_player_location, self.walls_locations, self.original_box_locations, self.original_terminal_locations)
 
     def init_objects(self, object_coords: list, new_type: Object) -> None:
         for i in range(0, len(object_coords), 2):
@@ -205,28 +200,59 @@ class GameBoard:
         return self.location
 
     def is_corner_location(self, x, y):
+        obstacle_counts = [0,0,0,0]
+        if self.board[x - 1][y - 1].is_obstacle():
+            obstacle_counts[0] += 1
+
+        if self.board[x - 1][y + 0].is_obstacle():
+            obstacle_counts[0] += 1
+            obstacle_counts[1] += 1
+
+        if self.board[x - 1][y + 1].is_obstacle():
+            obstacle_counts[1] += 1
+
+        if self.board[x + 0][y + 1].is_obstacle():
+            obstacle_counts[1] += 1
+            obstacle_counts[2] += 1
+            if max(obstacle_counts) == 3:
+                return True
+
+        if self.board[x + 1][y + 1].is_obstacle():
+            obstacle_counts[2] += 1
+
+        if self.board[x + 1][y + 0].is_obstacle():
+            obstacle_counts[2] += 1
+            obstacle_counts[3] += 1
+            if max(obstacle_counts) == 3:
+                return True
+
+        if self.board[x + 1][y - 1].is_obstacle():
+            obstacle_counts[3] += 1
+
+        if self.board[x + 0][y - 1].is_obstacle():
+            obstacle_counts[0] += 1
+            obstacle_counts[3] += 1
+            if max(obstacle_counts) == 3:
+                return True
+
         if not self.board[x + 1][y].is_wall() and not self.board[x - 1][y].is_wall():
             return False
         if not self.board[x][y + 1].is_wall() and not self.board[x][y - 1].is_wall():
             return False
         return True
 
-
     def update_locations(self, new_state: State) -> None:
+        self.move_player(new_state.player)
         unchanged_boxes = self.box_locations.intersection(new_state.boxes)
-        for (x, y) in self.box_locations - unchanged_boxes:
-            self.board[x][y].set_type(Object.EMPTY)
 
-        for (x,y) in new_state.boxes - unchanged_boxes:
+        for (x, y) in new_state.boxes - unchanged_boxes:
             # ISSUE: if (x,y) used to be Object.TERMINAL, it will be changed to BOX
-            if not self.board[x][y].is_terminal() and self.is_corner_location(x,y):
+            if not self.board[x][y].is_terminal() and self.is_corner_location(x, y):
                 # the box is stuck at a non-terminal corner, which means game over
                 self.has_stuck_box = True
             self.board[x][y].set_type(Object.BOX)
 
         self.box_locations = new_state.boxes
-        self.move_player(new_state.player)
-
 
     def get_current_state(self) -> State:
         # output the current state of the board as a State object
@@ -260,7 +286,7 @@ class GameBoard:
         for (x, y) in self.box_locations:
             for move in Move:
                 (i, j) = move.value
-                if self.board[x + i][y + j].is_empty() or self.board[x + i][y + j].is_terminal():
+                if self.board[x + i][y + j].is_empty() or self.board[x + i][y + j].is_terminal() or self.board[x + i][y + j].is_player():
                     if (x - i, y - j) in reachable_locations.keys():
                         path = _get_path((x - i, y - j)) + Move(move).name
                         valid_actions.append(Action((x, y), move, reachable_locations[(x - i, y - j)][0] + 1, path))
@@ -291,8 +317,4 @@ class GameBoard:
             return True
         return False
 
-    def find_incentive(self, next_state):
-        # find the incentive to be given for the next state as compare to the current state
-        # TODO: to do this, we must compare current and next_state box locations and terminal locations
 
-        return len(next_state.boxes.intersection(self.terminal_locations)) * 3

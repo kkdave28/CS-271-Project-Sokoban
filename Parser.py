@@ -42,8 +42,12 @@ class Parser:
         """
             Create a new GameBoard object and initialize all walls/boxes/terminals and player
         """
-        x = GameBoard(rows, cols, wall_count, boxes_count, term_count, player_loc, walls, boxes, terminals)
+        x = GameBoard(rows, cols, wall_count, boxes_count, term_count, player_loc)
+        x.init_objects(walls, Object.WALL)
+        x.init_objects(boxes, Object.BOX)
+        x.init_objects(terminals, Object.TERMINAL)
+        x.init_objects([c for c in player_loc], Object.PLAYER)
         """
             return the newly created object to the caller.
         """
-        return x
+        return x, player_loc, walls, boxes, terminals

@@ -13,15 +13,12 @@ from PolicyLearner import PolicyLearner
 
 def main():
     parser = Parser(sys.argv[1])
-    main_board = parser.parse_input()
+    main_board, original_player_loc, original_walls_loc, original_boxes_loc, original_terminal_loc = parser.parse_input()
+    print("Solving sokoban game:")
     main_board.debug()
 
-    policyLearner = PolicyLearner(main_board)
-
-    policyLearner.learn(10000,1)
-    print("done")
-
-
+    policyLearner = PolicyLearner(main_board, original_player_loc, original_walls_loc, original_boxes_loc, original_terminal_loc)
+    policyLearner.learn(int(sys.argv[2]))
 
 if __name__ == "__main__":
     main()

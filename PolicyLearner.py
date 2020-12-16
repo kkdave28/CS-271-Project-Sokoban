@@ -2,8 +2,10 @@ import collections
 import operator
 import random
 import sys
+import math
+import time
 
-from GameBoard import GameBoard, State, Action
+from GameBoard import GameBoard, State, Action, Object
 
 """
     Constants
@@ -16,64 +18,59 @@ DEFAULT_QUALITY = 0.0  # TODO: Find a good value for this
 
 
 class PolicyLearner:
-    def __init__(self, game_board: GameBoard):
-        self.initial_board = game_board.copy()
+    def __init__(self, game_board: GameBoard, original_player_loc, original_walls_loc, original_boxes_loc, original_terminal_loc):
         self.game_board = game_board
         self.state = game_board.get_current_state()
-        self.total_steps = 0
         self.terminated = False
         self.learning_rate = 1.0
         self.discount = 1.0
-        self.exploration_factor = 1
-        self.best_steps = STEPS_MAX
+        self.exploration_factor = 1.0
         self.quality_values = collections.defaultdict(dict)
+        self.max_quality_action = dict()  # key: State,  value: (action, quality_value)
+
+        self.original_player_loc = original_player_loc
+        self.original_walls_loc = original_walls_loc
+        self.original_boxes_loc = original_boxes_loc
+        self.original_terminal_loc = original_terminal_loc
 
     def reset_state(self) -> None:
-        self.initial_board = self.initial_board.copy()
-        self.game_board = self.initial_board
-        self.total_steps = 0
+        self.game_board = GameBoard(self.game_board.row_count, self.game_board.col_count,
+                                    self.game_board.wall_count, self.game_board.box_count,
+                                    self.game_board.term_count, self.original_player_loc)
+        self.game_board.init_objects(self.original_walls_loc, Object.WALL)
+        self.game_board.init_objects(self.original_boxes_loc, Object.BOX)
+        self.game_board.init_objects(self.original_terminal_loc, Object.TERMINAL)
+        self.game_board.init_objects([c for c in self.original_player_loc], Object.PLAYER)
         self.terminated = False
 
-    def learn(self, learning_time: int, learning_threshold: float) -> None:
-        current_time = 0
-        # total_steps = STEPS_MIN
-        while current_time < learning_time: # and (self.total_steps - total_steps > learning_threshold):
-            print("----------------------------time " + str(current_time) + "------------------------------")
-            # if total_steps == STEPS_MIN:
-            #     total_steps = 0
+    def learn(self, learning_time: int) -> None:
+        start = time.time()
+        iteration_count = 0
+        while time.time() - start < learning_time * 60:
+            if iteration_count % 1000 == 0:
+                print("----------------------------iteration " + str(iteration_count) + "------------------------------")
+
             self.reset_state()
-            self.exploration_factor = (learning_time - current_time) / learning_time
-            # self.learning_rate = (learning_time - current_time) / learning_time
+            self.exploration_factor = min(1 - (time.time() - start) / (learning_time * 60), 1)
             while not self.terminated:
                 action = self.choose_action()
                 if action is None:
                     self.terminated = True
-                    print("No actions in this iteration")
+                    # print("No actions in this iteration")
                     break
                 next_state = self.get_next_state(action)
-                reward = self.calculate_reward(next_state, action)
-                self.total_steps += action.action_cost
+                # reward = self.calculate_reward(next_state, action)
+                reward = -action.action_cost
                 old_state = self.game_board.get_current_state()
                 action_quality = self.get_current_quality(action)   # old action quality
 
                 self.update_state(next_state)
 
-                # print("old state: ", old_state)
-                # print("take action: ", action)
-                # print("reward: ", reward)
-                # print("action_quality: ", action_quality)
-                # print("new state: ", next_state)
-
-                # print("---------------------------------------------------------")
-                # self.game_board.debug()
-                # print("---------------------------------------------------------")
-
-                # print(self.quality_values)
-
                 if self.terminated:
                     # goal state reached
-                    self.set_quality(old_state, action, MAX_QUALITY)
-                    print("Goal state reached!!!!!!!!!!!!!!!!!!!!!!!!")
+                    self.set_quality(old_state, action, MAX_QUALITY - action.action_cost)
+                    # print("----------------------------time " + str(current_time) + "------------------------------")
+                    # print("Goal state reached!")
                     break
 
                 new_action = self.choose_best_action()
@@ -83,43 +80,52 @@ class PolicyLearner:
                     #     # so, set q-value for current state and chosen action as -infinity
                     self.terminated = True
                     self.set_quality(old_state, action, MIN_QUALITY)
-                    print("No more actions")
+                    # print("No more actions")
                     break
                 new_action_quality = self.get_quality(new_action, self.game_board.get_current_state())
 
                 new_quality = action_quality + self.learning_rate * (reward + self.discount * new_action_quality
                                                                      - action_quality)
-
                 self.set_quality(old_state, action, new_quality)
                 # print(self.quality_values)
 
-            if self.game_board.goal_reached():
-                self.best_steps = min(self.best_steps, self.total_steps)
-
-            current_time += 1
-        print("Time is up. done learning")
+            iteration_count += 1
+        # print("Time is up. done learning")
         # print("final q table: ", self.quality_values)
 
         final_total_steps = 0
+        final_path = ""
         self.reset_state()
+        best_action = None
+        visited_states = set()
         while not self.terminated:
             current_state = self.game_board.get_current_state()
             if current_state in self.quality_values:
-                best_action = max(self.quality_values[current_state].items(), key=operator.itemgetter(1))[0]
-                print(best_action)
+                if current_state in visited_states:
+                    print("Failed to find a solution")
+                    return None
+                visited_states.add(current_state)
+                # self.game_board.debug()
+                # print("Looking for actions")
+                # for current_action in self.quality_values[current_state]:
+                #     print(current_action)
+                #     print(self.quality_values[current_state][current_action])
+
+                # best_action = max(self.quality_values[current_state].items(), key=operator.itemgetter(1))[0]
+                best_action = self.max_quality_action[current_state][0]
+
                 final_total_steps += best_action.action_cost
-                self.game_board.debug()
+                final_path += best_action.path + " "
+                # print("Chosen action:")
+                # print(best_action)
                 next_state = self.get_next_state(best_action)
                 self.update_state(next_state)
             else:
-                print(current_state)
-                print("not in q table")
-                self.terminated = True
-        print(best_action)
-        self.game_board.debug()
-        print(final_total_steps)
-        print("Solution is found")
-
+                # print(current_state)
+                print("Failed to find a solution")
+                return None
+        print(str(final_total_steps) + " " + final_path)
+        return None
 
 
     def choose_action(self) -> (Action, float, bool):
@@ -147,12 +153,13 @@ class PolicyLearner:
 
         return new_state
 
-    def choose_best_action(self) -> Action:
+    def choose_best_action(self):
         # check the q-values dictionary for state to find the one with best q-value
         # key: dict(state: action), value: q-value (number)
         current_state = self.game_board.get_current_state()
         if current_state in self.quality_values:
-            return max(self.quality_values[current_state].items(), key=operator.itemgetter(1))[0]
+            return self.max_quality_action[current_state][0]
+            # return max(self.quality_values[current_state].items(), key=operator.itemgetter(1))[0]
 
         valid_actions = self.game_board.get_valid_actions()
         if len(valid_actions) == 0:
@@ -163,7 +170,7 @@ class PolicyLearner:
     def get_quality(self, action, state) -> float:
         if state in self.quality_values and action in self.quality_values[state]:
             return self.quality_values[state][action]
-        return DEFAULT_QUALITY  # TODO: Change to heuristic/computed value
+        return DEFAULT_QUALITY
 
     def get_current_quality(self, action) -> float:
         return self.get_quality(action, self.game_board.get_current_state())
@@ -173,11 +180,10 @@ class PolicyLearner:
             self.quality_values[state] = dict()
         self.quality_values[state][action] = new_quality
 
+        if state not in self.max_quality_action or self.max_quality_action[state][1] < new_quality:
+            # update the best action for this state
+            self.max_quality_action[state] = (action, new_quality)
+
     def update_state(self, next_state) -> None:
         self.game_board.update_locations(next_state)
         self.terminated = self.game_board.goal_reached()
-
-    def calculate_reward(self, next_state, action) -> float:
-        reward = -action.action_cost
-        incentive = self.game_board.find_incentive(next_state)
-        return reward + incentive
