@@ -59,9 +59,6 @@ class GridObject:
 
         self.Type = new_type
 
-
-
-
     def print_grid_object(self) -> None:
         print(self.Type.value, end="")
 
@@ -78,7 +75,14 @@ class GridObject:
         return Object.WALL == self.Type
 
     def is_terminal(self) -> bool:
-        return self.is_terminal_loc
+        return Object.TERMINAL == self.Type
+
+    def is_terminal_with_box(self) -> bool:
+        return Object.TERMINAL_WITH_BOX == self.Type
+
+    def is_obstacle(self) -> bool:
+        return self.is_wall() or self.is_box() or self.is_terminal_with_box()
+
 
 
 """
@@ -188,14 +192,43 @@ class GameBoard:
         return self.location
 
     def is_corner_location(self, x, y):
+        obstacle_counts = [0,0,0,0]
+        if self.board[x - 1][y - 1].is_obstacle():
+            obstacle_counts[0] += 1
+
+        if self.board[x - 1][y + 0].is_obstacle():
+            obstacle_counts[0] += 1
+            obstacle_counts[1] += 1
+
+        if self.board[x - 1][y + 1].is_obstacle():
+            obstacle_counts[1] += 1
+
+        if self.board[x + 0][y + 1].is_obstacle():
+            obstacle_counts[1] += 1
+            obstacle_counts[2] += 1
+            return max(obstacle_counts) == 3
+
+        if self.board[x + 1][y + 1].is_obstacle():
+            obstacle_counts[2] += 1
+
+        if self.board[x + 1][y + 0].is_obstacle():
+            obstacle_counts[2] += 1
+            obstacle_counts[3] += 1
+            return max(obstacle_counts) == 3
+
+        if self.board[x + 1][y - 1].is_obstacle():
+            obstacle_counts[3] += 1
+
+        if self.board[x + 0][y - 1].is_obstacle():
+            obstacle_counts[0] += 1
+            obstacle_counts[3] += 1
+            return max(obstacle_counts) == 3
+
         if not self.board[x + 1][y].is_wall() and not self.board[x - 1][y].is_wall():
             return False
         if not self.board[x][y + 1].is_wall() and not self.board[x][y - 1].is_wall():
             return False
-
-        
         return True
-
 
     def update_locations(self, new_state: State) -> None:
         unchanged_boxes = self.box_locations.intersection(new_state.boxes)
@@ -245,7 +278,7 @@ class GameBoard:
         for (x, y) in self.box_locations:
             for move in Move:
                 (i, j) = move.value
-                if self.board[x + i][y + j].is_empty() or self.board[x + i][y + j].is_terminal():
+                if self.board[x + i][y + j].is_empty() or self.board[x + i][y + j].is_terminal() or self.board[x + i][y + j].is_player():
                     if (x - i, y - j) in reachable_locations.keys():
                         path = _get_path((x - i, y - j)) + Move(move).name
                         valid_actions.append(Action((x, y), move, reachable_locations[(x - i, y - j)][0] + 1, path))

@@ -121,9 +121,9 @@ class PolicyLearner:
             current_state = self.game_board.get_current_state()
             if current_state in self.quality_values:
                 best_action = max(self.quality_values[current_state].items(), key=operator.itemgetter(1))[0]
-                print(best_action)
                 final_total_steps += best_action.action_cost
                 self.game_board.debug()
+                print(best_action)
                 next_state = self.get_next_state(best_action)
                 self.update_state(next_state)
             else:

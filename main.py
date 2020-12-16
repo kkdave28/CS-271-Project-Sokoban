@@ -18,7 +18,7 @@ def main():
 
     policyLearner = PolicyLearner(main_board, original_player_loc, original_walls_loc, original_boxes_loc, original_terminal_loc)
 
-    policyLearner.learn(10000)
+    policyLearner.learn(100)
     print("done")
 
 
