@@ -1,8 +1,8 @@
 import collections
+import sys
 from enum import Enum
 import queue
-import math
-import sys
+import random
 
 """
     Types of grid objects
@@ -16,6 +16,7 @@ class Object(Enum):
     TERMINAL = "."
     PLAYER = "@"
     TERMINAL_WITH_BOX = "*"
+
 
 """
     Movement directions 
@@ -46,10 +47,11 @@ class GridObject:
         return self.Type
 
     def set_type(self, new_type: Object) -> None:
-        if new_type == Object.TERMINAL:
+        if (new_type == Object.TERMINAL):
             self.is_terminal_loc = True
 
-        if (new_type == Object.TERMINAL and self.Type == Object.BOX) or (new_type == Object.BOX and self.Type == Object.TERMINAL):
+        if (new_type == Object.TERMINAL and self.Type == Object.BOX) or (
+                new_type == Object.BOX and self.Type == Object.TERMINAL):
             self.Type = Object.TERMINAL_WITH_BOX
             self.is_terminal_loc = True
             return
@@ -78,8 +80,6 @@ class GridObject:
     def is_terminal(self) -> bool:
         return self.is_terminal_loc
 
-    def is_terminal_with_box(self) -> bool:
-        return Object.TERMINAL_WITH_BOX == self.Type
 
 """
     State class to hold just player and box locations
@@ -98,7 +98,7 @@ class State:
         return hash(tuple((self.player, tuple(list(self.boxes)))))
 
     def __eq__(self, other):
-        return isinstance(other,State) and self.player == other.player and self.boxes == other.boxes
+        return isinstance(other, State) and self.player == other.player and self.boxes == other.boxes
 
     def __repr__(self):
         return "Player at {} and boxes at {}".format(self.player, self.boxes)
@@ -124,7 +124,7 @@ class Action:
 
     def __eq__(self, other):
         return isinstance(other, Action) and self.__hash__() == other.__hash__()
-    
+
     def __repr__(self):
         return "Player move {} to push box at {} {}, {} steps.".format(self.path, self.box, self.direction,
                                                                        self.action_cost)
@@ -199,26 +199,19 @@ class GameBoard:
         if not self.board[x][y + 1].is_wall() and not self.board[x][y - 1].is_wall():
             return False
 
-        
         return True
 
     def update_locations(self, new_state: State) -> None:
         unchanged_boxes = self.box_locations.intersection(new_state.boxes)
         for (x, y) in self.box_locations - unchanged_boxes:
-            location = self.board[x][y]
-            if location.is_terminal():
-                location.set_type(Object.TERMINAL)
-            else:
-                location.set_type(Object.EMPTY)
+            self.board[x][y].set_type(Object.EMPTY)
 
         for (x, y) in new_state.boxes - unchanged_boxes:
+            # ISSUE: if (x,y) used to be Object.TERMINAL, it will be changed to BOX
             if not self.board[x][y].is_terminal() and self.is_corner_location(x, y):
                 # the box is stuck at a non-terminal corner, which means game over
                 self.has_stuck_box = True
-            if self.board[x][y].is_terminal() and not self.board[x][y].is_terminal_with_box():
-                self.board[x][y].set_type(Object.TERMINAL_WITH_BOX)
-            elif self.board[x][y].is_empty():
-                self.board[x][y].set_type(Object.BOX)
+            self.board[x][y].set_type(Object.BOX)
 
         self.box_locations = new_state.boxes
         self.move_player(new_state.player)
@@ -255,8 +248,7 @@ class GameBoard:
         for (x, y) in self.box_locations:
             for move in Move:
                 (i, j) = move.value
-                if self.board[x + i][y + j].is_empty() or (not self.board[x + i][y + j].is_terminal_with_box()
-                                                           and self.board[x + i][y + j].is_terminal()):
+                if self.board[x + i][y + j].is_empty() or self.board[x + i][y + j].is_terminal():
                     if (x - i, y - j) in reachable_locations.keys():
                         path = _get_path((x - i, y - j)) + Move(move).name
                         valid_actions.append(Action((x, y), move, reachable_locations[(x - i, y - j)][0] + 1, path))
@@ -277,8 +269,7 @@ class GameBoard:
             for move in Move:
                 (i, j) = move.value
                 if (x + i, y + j) not in reachable_locations.keys():
-                    if self.board[x + i][y + j].is_empty() or (not self.board[x + i][y + j].is_terminal_with_box()
-                                                               and self.board[x + i][y + j].is_terminal()):
+                    if self.board[x + i][y + j].is_empty() or self.board[x + i][y + j].is_terminal():
                         reachable_locations[(x + i, y + j)] = (d + 1, (x, y))
                         frontier.put(((x + i, y + j), d + 1))
         return reachable_locations
@@ -312,7 +303,7 @@ class GameBoard:
         return total_distance
 
     def _find_distance(self, x1, y1, x2, y2):
-        return abs(y2-y1) + abs(x2-x1)
+        return abs(y2 - y1) + abs(x2 - x1)
 
 
 
