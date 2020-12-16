@@ -23,8 +23,8 @@ class PolicyLearner:
         self.state = game_board.get_current_state()
         self.total_steps = 0
         self.terminated = False
-        self.learning_rate = 0.7
-        self.discount = 1.0
+        self.learning_rate = 1.0
+        self.discount = 0.97
         self.exploration_factor = 1
         self.best_steps = STEPS_MAX
         self.quality_values = collections.defaultdict(dict)
@@ -55,9 +55,10 @@ class PolicyLearner:
             #     total_steps = 0
             self.reset_state()
             # self.exploration_factor = math.cos((current_time / learning_time) * math.pi / 2)
+            # self.exploration_factor = (learning_time - current_time) / learning_time
             self.exploration_factor = math.sqrt(1 - (current_time / learning_time) ** 2)
-            self.discount = math.sin((current_time / learning_time) * math.pi / 2)
-            # self.learning_rate = (learning_time - current_time) / learning_time
+            # self.discount = self.discount * (learning_time - current_time) / learning_time
+            self.learning_rate = (learning_time - current_time) / learning_time
             while not self.terminated:
                 action = self.choose_action()
                 if action is None:
@@ -120,10 +121,15 @@ class PolicyLearner:
         while not self.terminated:
             current_state = self.game_board.get_current_state()
             if current_state in self.quality_values:
+                self.game_board.debug()
+                print("Looking for actions")
+                for current_action in self.quality_values[current_state]:
+                    print(current_action)
+                    print(self.quality_values[current_state][current_action])
                 best_action = max(self.quality_values[current_state].items(), key=operator.itemgetter(1))[0]
+                print("Chosen action:")
                 print(best_action)
                 final_total_steps += best_action.action_cost
-                self.game_board.debug()
                 next_state = self.get_next_state(best_action)
                 self.update_state(next_state)
             else:

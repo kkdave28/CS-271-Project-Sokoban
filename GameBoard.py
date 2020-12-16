@@ -119,6 +119,12 @@ class Action:
         self.action_cost = action_cost
         self.path = path
 
+    def __hash__(self):
+        return hash(tuple((self.box, self.direction, self.action_cost, self.path)))
+
+    def __eq__(self, other):
+        return isinstance(other, Action) and self.__hash__() == other.__hash__()
+
     def __repr__(self):
         return "Player move {} to push box at {} {}, {} steps.".format(self.path, self.box, self.direction,
                                                                        self.action_cost)
@@ -279,4 +285,4 @@ class GameBoard:
     def find_incentive(self, next_state):
         # find the incentive to be given for the next state as compare to the current state
 
-        return len(next_state.boxes.intersection(self.terminal_locations)) * 5
+        return len(next_state.boxes.intersection(self.terminal_locations)) * 2
