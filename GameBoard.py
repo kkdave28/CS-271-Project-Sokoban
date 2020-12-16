@@ -318,28 +318,4 @@ class GameBoard:
             return True
         return False
 
-    def find_incentive(self, next_state):
-        # find the incentive to be given for the next state as compare to the current state
-        curr_total_dist = self._find_distance_to_terminal(self.get_current_state().boxes, self.terminal_locations.copy())
-        new_total_dist = self._find_distance_to_terminal(next_state.boxes, self.terminal_locations.copy())
-        return curr_total_dist - new_total_dist
-
-    def _find_distance_to_terminal(self, boxes: set, terminals: set) -> int:
-        total_distance = 0
-        for box in boxes:
-            min_dist = sys.maxsize
-            nearest_terminal = ""
-            for terminal in terminals:
-                distance_from_terminal = self._find_distance(box[0], box[1], terminal[0], terminal[1])
-                if distance_from_terminal < min_dist:
-                    min_dist = distance_from_terminal
-                    nearest_terminal = terminal
-            terminals.remove(nearest_terminal)
-            total_distance += min_dist
-        return total_distance
-
-    def _find_distance(self, x1, y1, x2, y2):
-        return abs(y2 - y1) + abs(x2 - x1)
-
-
 

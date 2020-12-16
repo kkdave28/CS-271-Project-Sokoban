@@ -187,9 +187,3 @@ class PolicyLearner:
     def update_state(self, next_state) -> None:
         self.game_board.update_locations(next_state)
         self.terminated = self.game_board.goal_reached()
-
-    def calculate_reward(self, next_state, action) -> float:
-        reward = -action.action_cost
-        incentive = self.game_board.find_incentive(next_state)
-        # incentive = self.game_board.get_placed_boxes(next_state)
-        return reward + incentive
