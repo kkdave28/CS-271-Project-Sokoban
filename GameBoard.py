@@ -123,6 +123,12 @@ class Action:
         self.action_cost = action_cost
         self.path = path
 
+    def __hash__(self):
+        return hash(tuple((self.box, self.direction, self.action_cost, self.path)))
+
+    def __eq__(self, other):
+        return isinstance(other, Action) and self.__hash__() == other.__hash__()
+    
     def __repr__(self):
         return "Player move {} to push box at {} {}, {} steps.".format(self.path, self.box, self.direction,
                                                                        self.action_cost)
