@@ -245,7 +245,6 @@ class GameBoard:
         unchanged_boxes = self.box_locations.intersection(new_state.boxes)
 
         for (x, y) in new_state.boxes - unchanged_boxes:
-            # ISSUE: if (x,y) used to be Object.TERMINAL, it will be changed to BOX
             if not self.board[x][y].is_terminal() and self.is_corner_location(x, y):
                 # the box is stuck at a non-terminal corner, which means game over
                 self.has_stuck_box = True
