@@ -40,7 +40,6 @@ class GridObject:
     def __init__(self):
         self.Type = Object.EMPTY
         self.is_terminal_loc = False
-        self.has_player = False
 
     def get_type(self) -> Object:
         return self.Type
