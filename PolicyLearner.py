@@ -13,14 +13,13 @@ from GameBoard import GameBoard, State, Action, Object
 STEPS_MIN = - sys.maxsize - 1
 STEPS_MAX = sys.maxsize
 MIN_QUALITY = - sys.maxsize - 1
-MAX_QUALITY = sys.maxsize
+MAX_QUALITY = 100
 DEFAULT_QUALITY = 0.0  # TODO: Find a good value for this
 
 
 class PolicyLearner:
     def __init__(self, game_board: GameBoard, original_player_loc, original_walls_loc, original_boxes_loc, original_terminal_loc):
         self.game_board = game_board
-        self.state = game_board.get_current_state()
         self.terminated = False
         self.learning_rate = 1.0
         self.discount = 1.0
@@ -111,7 +110,6 @@ class PolicyLearner:
                 #     print(current_action)
                 #     print(self.quality_values[current_state][current_action])
 
-                # best_action = max(self.quality_values[current_state].items(), key=operator.itemgetter(1))[0]
                 best_action = self.max_quality_action[current_state][0]
 
                 final_total_steps += best_action.action_cost
